@@ -38,10 +38,11 @@ class Scraper:
         self.driver = None
 
         if overseas:
-            self.url = "https://oversea.cnki.net/"
+            self.url = "https://oversea.cnki.net"
             self.overseas = True
         else:
-            self.url = "https://cnki.net/"
+            self.url = "https://cnki.net"
+            self.kns_url = "https://kns.cnki.net" # is the Knowledge Network System url also used overseas? TODO
             self.overseas = False
 
         self.timeout = timeout
@@ -163,7 +164,7 @@ class Scraper:
         # Informations sur l'article
         name_class = soup_article.find("td", class_="name")
         info['Title'] = name_class.a.text
-        info['Link'] = name_class.a['href']
+        info['Link'] = self.url + name_class.a['href']
 
         author_class = soup_article.find("td", class_="author")
         if author_class is not None:
@@ -171,8 +172,9 @@ class Scraper:
             authors_list = author_class.find_all("a")
             if len(authors_list) > 0:
                 for author in authors_list:
-                    if 'href' in author:
-                        authors[author.text] = author['href']
+                    if any("KnowledgeNetLink" in a for a in author['class']):
+                        #TODO: we need to rewrite the URL. The values are all there but the keys/url is different (under .net/kcms)
+                        authors[author.text] = self.kns_url + author['href']
                     else:
                         authors[author.text] = ""
             else:
@@ -181,7 +183,7 @@ class Scraper:
             info['Authors'] = authors
 
         source_class = soup_article.find("td", class_="source")
-        info['Source'] = [source_class.a.text, source_class.a['href']]
+        info['Source'] = [source_class.a.text, self.url + source_class.a['href']]
 
         info['Year'] = soup_article.find("td", class_="date").text
 
