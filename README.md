@@ -2,6 +2,8 @@
 
 This is a fork of [Eloise Zag's](https://github.com/El-Zag) wonderful Google Scholar Scraping tool, with some extra features and bugfixes. Ideally, I'd like to generalize it to work with many academic databases (Scholar, Researchgate, CNKI, etc.) and get it packaged for general availability. Contributions are more than welcome!
 
+
+# NOTE: The instructions below are OLD and need to be updated.
 ## Before running the code (WINDOWS)
 * Install Google Chrome
 * Download code and ressources folder
