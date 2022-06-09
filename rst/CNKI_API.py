@@ -1,4 +1,5 @@
 import requests
+from urllib.parse import urlparse, parse_qs, urlencode
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
@@ -164,7 +165,7 @@ class Scraper:
         # Informations sur l'article
         name_class = soup_article.find("td", class_="name")
         info['Title'] = name_class.a.text
-        info['Link'] = self.url + name_class.a['href']
+        info['Link'] = self.rebuild_articlelink(self.url + name_class.a['href'])
 
         author_class = soup_article.find("td", class_="author")
         if author_class is not None:
@@ -174,7 +175,7 @@ class Scraper:
                 for author in authors_list:
                     if any("KnowledgeNetLink" in a for a in author['class']):
                         #TODO: we need to rewrite the URL. The values are all there but the keys/url is different (under .net/kcms)
-                        authors[author.text] = self.kns_url + author['href']
+                        authors[author.text] = self.rebuild_authorlink(self.kns_url + author['href'])
                     else:
                         authors[author.text] = ""
             else:
@@ -220,6 +221,18 @@ class Scraper:
         file = max(paths, key=os.path.getctime)
         return file
 
+# CNKI links are dependent on javascript to convert the link. Let's make sure we have the right version.
+    def rebuild_authorlink(self, url):
+        old_parsed = urlparse(url)
+        old_qs = parse_qs(old_parsed.query)
+        new_qs = {'dbcode': old_qs['sdb'][0], 'code': old_qs['scode'][0], 'sfield': 'au', 'skey': old_qs['skey'][0], 'uniplatform': 'NZKPT'}
+        return ('https://kns.cnki.net/kcms/detail/knetsearch.aspx?' + urlencode(new_qs))
+
+    def rebuild_articlelink(self, url):
+        old_parsed = urlparse(url)
+        old_qs = parse_qs(old_parsed.query)
+        new_qs = {'dbcode': old_qs['DbCode'][0], 'dbname': old_qs['DbName'][0], 'filename': old_qs['FileName'][0], 'uniplatform': 'NZKPT'}
+        return ('https://kns.cnki.net/kcms/detail/detail.aspx?' + urlencode(new_qs))
 
     def save_metadata(self, info):
         exists = os.path.isfile(self.download_dir + self.slash + 'metadonnees.csv')
@@ -229,4 +242,3 @@ class Scraper:
                 dictwriter.writeheader()
             dictwriter.writerow(info)
             output.close()
-
