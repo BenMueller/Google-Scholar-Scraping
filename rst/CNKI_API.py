@@ -1,4 +1,5 @@
 import requests
+import time
 from urllib.parse import urlparse, parse_qs, urlencode
 from bs4 import BeautifulSoup
 from selenium import webdriver
@@ -94,13 +95,14 @@ class Scraper:
         search_input.send_keys(search)
         search_input.send_keys(Keys.RETURN)
 
+        # We need to make sure and wait until the complex JS is loaded in the page. This may take a while. *sigh*
+        try:
+            WebDriverWait(self.driver, self.timeout).until(EC.presence_of_element_located((By.CLASS_NAME, 'result-table-list')))
+        except TimeoutException:
+            print("Search timed out! Try increasing the timeout variable.")
+
         for i in range(first_page, last_page + 1):
 
-            # We need to make sure and wait until the complex JS is loaded in the page. This may take a while. *sigh*
-            try:
-                WebDriverWait(self.driver, self.timeout).until(EC.presence_of_element_located((By.CLASS_NAME, 'result-table-list')))
-            except TimeoutException:
-                print("Search timed out! Try increasing the timeout variable.")
 
             soup_page = BeautifulSoup(self.driver.page_source, "html.parser")
 
@@ -110,11 +112,18 @@ class Scraper:
             articles_dl = articles_dl + article
 
             # Is there another page?
-            if soup_page.find("div", class_="pages", id='PageNext') is not None:
+            pages_divider = soup_page.find("div", class_="pages")
+            if soup_page.find("a", id='PageNext') is not None:
                 if i != (last_page+1):
                     pages_class = self.driver.find_element_by_class_name("pages")
                     pagenext_button = pages_class.find_element_by_id("PageNext")
                     pagenext_button.click()
+                    try:
+                        WebDriverWait(self.driver, self.timeout).until(EC.presence_of_element_located((By.CLASS_NAME, 'divLoading')))
+                        WebDriverWait(self.driver, self.timeout).until(EC.invisibility_of_element_located((By.CLASS_NAME, 'divLoading')))
+                    except TimeoutException:
+                        print("Search timed out! Try increasing the timeout variable.")
+                    #time.sleep(5)
 
 
         print("\n" + str(len(articles_dl)) + " documents available")
