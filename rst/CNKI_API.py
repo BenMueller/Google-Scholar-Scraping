@@ -1,7 +1,11 @@
 import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
-from selenium import Keys
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
+from selenium.common.exceptions import TimeoutException
 from time import sleep
 from sys import platform
 import os
@@ -13,7 +17,7 @@ import csv
 
 
 class Scraper:
-    def __init__(self, download_dir, language, captcha, sleeptime, overseas=False):
+    def __init__(self, download_dir, language, captcha, sleeptime, overseas=False, timeout=10):
         # Parameters that can be altered during the session
         self.download_dir = download_dir
         self.language = language
@@ -39,6 +43,8 @@ class Scraper:
         else:
             self.url = "https://cnki.net/"
             self.overseas = False
+
+        self.timeout = timeout
 
         if self.captcha:
             options = webdriver.ChromeOptions()
@@ -81,17 +87,22 @@ class Scraper:
             authors = [authors]
 
         # make search query manually
-        search_main = self.driver.find_element_by_class_name("search-main")
-        search_input = search_main.find_element_by_id("txt_search")
+        search_main = self.driver.find_element_by_class_name("input-box") # can become search-main once in a search page
+        search_input = search_main.find_element_by_class_name("search-input")
         search_input.send_keys(search)
         search_input.send_keys(Keys.RETURN)
-        search_input.submit()
 
         for i in range(first_page, last_page + 1):
 
-            print("\nExploration of Page " + str(i))
+            # We need to make sure and wait until the complex JS is loaded in the page. This may take a while. *sigh*
+            try:
+                WebDriverWait(self.driver, self.timeout).until(EC.presence_of_element_located((By.CLASS_NAME, 'result-table-list')))
+            except TimeoutException:
+                print("Search timed out! Try increasing the timeout variable.")
 
-            soup_page = BeautifulSoup(driver.page_source, "html.parser")
+            soup_page = BeautifulSoup(self.driver.page_source, "html.parser")
+
+            print("\nExploration of Page " + str(i))
             article = self.page_scraper(soup_page)
 
             articles_dl = articles_dl + article
@@ -109,33 +120,29 @@ class Scraper:
 
     # Scrape each page one at a time
     def page_scraper(self, soup_page):
-        if not self.captcha:
-            req = requests.get(soup_url, self.headers)
-            soup = BeautifulSoup(req.content, 'lxml')
-
-        # SWITCH TO THIS if captcha block
-        else:
-            self.driver.get(soup_url)
-            soup = BeautifulSoup(self.driver.page_source, 'lxml')
 
         # All the results of the page
-        results = soup.find("div", id="gs_res_ccl_mid")
-
-        # List of all the articles
-        articles = results.findChildren("div", class_="odd")
+        results = soup_page.find("table", class_="result-table-list") #id="gs_res_ccl_mid")
 
         articles_dl = []
-        # TODO: I want to eventually rewrite this section/inputs so that instead of include_all,
-        # we have a flag download=Y/N, and another one to ignore ones missing the doc (ignore_missing?)
-        for article in articles:
-            info = self.article_info(article)
-            articles_dl.append(info)
+
+        # Check if any results
+        if results is not None:
+            # List of all the articles
+            table_body = results.find("tbody") # , class_="odd")
+            articles = table_body.findChildren("tr") # , class_="odd")
+
+            # TODO: I want to eventually rewrite this section/inputs so that instead of include_all,
+            # we have a flag download=Y/N, and another one to ignore ones missing the doc (ignore_missing?)
+            for article in articles:
+                info = self.article_info(article)
+                articles_dl.append(info)
 
 # TODO: rewrite this/trace through?                self.save_metadata(info)
 
         return articles_dl
 
-    # Take as input a div class = "gs_r gs_or gs_scl" (an article in google scholar's html)
+    # Take as input a td class (used by CNKI to group results)
     # With a downloadable link (assert)
     # Output is a dictionary with those infos :
     # { Title : String, title of the paper,
@@ -154,20 +161,29 @@ class Scraper:
         info = dict()
 
         # Informations sur l'article
-        name_class = soup_article.findChild("div", class_="name")
+        name_class = soup_article.find("td", class_="name")
         info['Title'] = name_class.a.text
         info['Link'] = name_class.a['href']
 
-        authors = dict()
-        author_class = soup_article.findChildren("div", class_="author")
-        for author in author_class:
-            authors[author.a.text] = author.a['href']
-        info['Authors'] = authors
+        author_class = soup_article.find("td", class_="author")
+        if author_class is not None:
+            authors = dict()
+            authors_list = author_class.find_all("a")
+            if len(authors_list) > 0:
+                for author in authors_list:
+                    if 'href' in author:
+                        authors[author.text] = author['href']
+                    else:
+                        authors[author.text] = ""
+            else:
+                authors[author_class.text] = ""
 
-        source_class = soup_article.findChildren("div", class_="source")
+            info['Authors'] = authors
+
+        source_class = soup_article.find("td", class_="source")
         info['Source'] = [source_class.a.text, source_class.a['href']]
 
-        info['Year'] = soup_article.findChildren("div", class_="date").text
+        info['Year'] = soup_article.find("td", class_="date").text
 
 # This would be nice but it seems like we'd have to scrape the subpage, see note below
 #        info['Journal'] = publication_infos[2]
