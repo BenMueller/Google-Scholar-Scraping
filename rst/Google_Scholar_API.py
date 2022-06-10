@@ -1,6 +1,11 @@
 import requests
+from requests.exceptions import Timeout
 from bs4 import BeautifulSoup
 from selenium import webdriver
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
+from selenium.common.exceptions import TimeoutException
 from time import sleep
 from sys import platform
 import os
@@ -27,14 +32,16 @@ class Scraper:
             'Access-Control-Allow-Methods': 'GET',
             'Access-Control-Allow-Headers': 'Content-Type',
             'Access-Control-Max-Age': '3600',
-            'User-Agent': self.ua.random,
+            'User-Agent': self.ua.chrome,
         }
+
+        self.timeout = 10
 
         self.driver = None
         # On ouvre une session et on rempli à la main le captcha
         if self.captcha:
             options = webdriver.ChromeOptions()
-            options.add_argument(f'user-agent={self.ua.random}')
+            options.add_argument(f'user-agent={self.ua.chrome}')
             self.driver = webdriver.Chrome(options=options)
             self.driver.get("https://scholar.google.com/")
 
@@ -43,6 +50,9 @@ class Scraper:
             self.slash = '\\'
         if platform == "linux" or platform == "linux2" or platform == "darwin":
             self.slash = '/'
+
+    def close(self):
+        self.driver.close()
 
     def set_language(self, language):
         self.language = language
@@ -93,6 +103,14 @@ class Scraper:
         else:
             self.driver.get(soup_url)
             soup = BeautifulSoup(self.driver.page_source, 'lxml')
+            if soup.find("div", id="gs_captcha_ccl") is not None:
+                try:
+                    WebDriverWait(self.driver, 120).until(EC.presence_of_element_located((By.ID, 'gs_captcha_ccl')))
+                    WebDriverWait(self.driver, 120).until(EC.invisibility_of_element_located((By.ID, 'gs_captcha_ccl')))
+                except TimeoutException:
+                    print("Search timed out! Try increasing the timeout variable.")
+                soup = BeautifulSoup(self.driver.page_source, 'lxml')
+
 
         # All the results of the page
         results = soup.find("div", id="gs_res_ccl_mid")
@@ -118,12 +136,17 @@ class Scraper:
                         # If the link is already a pdf file, download it directly
                         if os.path.splitext(info['Download'])[1] == ".pdf":
                             filename = Path(self.download_dir + self.slash + name)
-                            response = requests.get(info['Download'])
-                            filename.write_bytes(response.content)
+                            try:
+                                response = requests.get(info['Download'], timeout=self.timeout)
+                                filename.write_bytes(response.content)
+                            except Timeout:
+                                print("File at " + info['Download'] + " timed out\n")
+
 
                         # If not, use webdriver to download the links
                         else:
-                            self.dl_embedded_pdf(info['Download'], name)
+                            if not "proquest.com" in info['Download']: # TODO: put a blacklist here of "bad" download sites
+                                self.dl_embedded_pdf(info['Download'], name)
                         print("\x1B[3m'" + info['Title'] + "'\x1B[23m")
 
                         self.save_metadata(info)
@@ -217,14 +240,14 @@ class Scraper:
         tmp_driver = webdriver.Chrome(options=options)
         tmp_driver.get(link)
 
-        sleep(self.sleep)
+        sleep(int(self.sleep))
 
         # For pdfs from wiley it doesn't download it right away
         frame = tmp_driver.find_elements_by_id('pdf-iframe')
         if len(frame) == 1:
             tmp_driver.switch_to.frame(frame[0])
             tmp_driver.find_element_by_tag_name('a').click()
-            sleep(self.sleep)
+            sleep(int(self.sleep))
 
         file = self.most_recent_file()
         while not file or file.endswith('.crdownload'):
@@ -285,7 +308,7 @@ class Scraper:
         # SWITCH TO THIS if captcha block
         else:
             self.driver.get(soup_url)
-            sleep(self.sleep)
+            sleep(int(self.sleep))
             soup = BeautifulSoup(self.driver.page_source, 'lxml')
 
         html = open(self.download_dir + "\\" + name, "w", encoding='utf-8')
