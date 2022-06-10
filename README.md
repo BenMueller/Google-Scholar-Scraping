@@ -45,6 +45,8 @@ There are 2 ways to use this script :
 * Add CNKI as a supported academic database (any others? E.g. Researchgate?)
 * Allow scraping author profiles
 * Optionally use Firefox as webdriver
+* Would be nice if we could scrape author associations from iopscience.iop.org articles
+* DOI. **IMPORTANT**
 * Grepping through the PDFs/html for author emails/contact info would be nice. Regex?
 * Add a CLI interface for Linux. Would be pretty easy, I've done it before. (Package it?)
 * Automated Testing. While this is at the bottom of the list, it definitely isn't the lowest priority!
