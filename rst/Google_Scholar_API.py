@@ -17,7 +17,7 @@ import csv
 
 
 class Scraper:
-    def __init__(self, download_dir, language, captcha, sleeptime):
+    def __init__(self, download_dir, language, captcha, sleeptime, blacklist=True, allow_broken_ssl=False):
         # Parameters that can be altered during the session
         self.download_dir = download_dir
         self.language = language
@@ -50,6 +50,24 @@ class Scraper:
             self.slash = '\\'
         if platform == "linux" or platform == "linux2" or platform == "darwin":
             self.slash = '/'
+
+        # TODO: this code probably breaks on Windows, test it there. Intended to be a blacklist of
+        # "bad" URLs that appear to not work, but we should let the user ignore this if they want
+        # (ideally we would log the broken download link after making an attempt)
+        # Note 2: this code ALREADY breaks if you're using pip/packagetools. todo: fix this in setup.cfg
+        # Hotfix currently in place: don't read from the file
+        if blacklist:
+            self.blacklist = ['icm.edu.pl', 'proquest.com', 'kut.edu.kp', 'ist.psu.edu', 'koreascience.or.kr', 'img.hisupplier.com', 'xuebao.neu.edu.cn', 'journal.hep.com.cn', 'worldscientific.com']
+#            with open("../res/blacklist.txt") as fh:
+#                self.blacklist.append(fh.readline())
+
+        if allow_broken_ssl:
+            # TODO: some pages due to various... reasons... (hmmm, I wonder why Kim-Chaek university
+            # in North Korea doesn't load properly lol) have broken SSL.
+            # We should give the option to users to ignore browser warnings and download/scrape anyways.
+            # For now, I'm adding kim-chaek to the blacklist, but it should be removed once we fix this.
+            print("This feature is not yet implemented!")
+
 
     def close(self):
         self.driver.close()
@@ -88,29 +106,42 @@ class Scraper:
 
             url = self.generate_url(search, authors, page=i)
 
-            articles_dl = articles_dl + self.url_infos(url, include_all)
+            if not self.captcha:
+                req = requests.get(url, self.headers)
+                soup = BeautifulSoup(req.content, 'lxml')
+
+            # SWITCH TO THIS if captcha block
+            else:
+                self.driver.get(url)
+                soup = BeautifulSoup(self.driver.page_source, 'lxml')
+                if soup.find("div", id="gs_captcha_ccl") is not None:
+                    try:
+                        WebDriverWait(self.driver, 120).until(EC.presence_of_element_located((By.ID, 'gs_captcha_ccl')))
+                        WebDriverWait(self.driver, 120).until(EC.invisibility_of_element_located((By.ID, 'gs_captcha_ccl')))
+                    except TimeoutException:
+                        print("Search timed out! Try increasing the timeout variable.") #TODO: this is currently embedded above. Unify timeout vars.
+                    soup = BeautifulSoup(self.driver.page_source, 'lxml')
+
+            body = soup.find("div", class_="gs_r")
+            if body is not None:
+                if "did not match any articles." in body.get_text(strip=True):
+                    print("Zero results found")
+                    break
+
+            page_articles = self.scrape_page(soup, include_all)
+
+            articles_dl = articles_dl + page_articles
+
+            #TODO: this check for next page appears to not work, debug
+            if soup.find("span", class_="gs_ico gs_ico_nav_last") is not None:
+                print("Results ended on Page " + str(i))
+                break
 
         print("\n" + str(len(articles_dl)) + " documents ont été téléchargés")
         return articles_dl
 
-    # downloads all the available texts from the google scholar url
-    def url_infos(self, soup_url, include_all=False):
-        if not self.captcha:
-            req = requests.get(soup_url, self.headers)
-            soup = BeautifulSoup(req.content, 'lxml')
-
-        # SWITCH TO THIS if captcha block
-        else:
-            self.driver.get(soup_url)
-            soup = BeautifulSoup(self.driver.page_source, 'lxml')
-            if soup.find("div", id="gs_captcha_ccl") is not None:
-                try:
-                    WebDriverWait(self.driver, 120).until(EC.presence_of_element_located((By.ID, 'gs_captcha_ccl')))
-                    WebDriverWait(self.driver, 120).until(EC.invisibility_of_element_located((By.ID, 'gs_captcha_ccl')))
-                except TimeoutException:
-                    print("Search timed out! Try increasing the timeout variable.")
-                soup = BeautifulSoup(self.driver.page_source, 'lxml')
-
+    # Inputs a BeautifulSoup page, and scrapes all info (TODO: include_all is misleading)
+    def scrape_page(self, soup, include_all=False):
 
         # All the results of the page
         results = soup.find("div", id="gs_res_ccl_mid")
@@ -124,7 +155,9 @@ class Scraper:
             # Cas d'un lien pdf directement
             if article.find("div", class_="gs_ggs gs_fl") is not None:
                 info = self.article_info(article, True)
-                if info['Type'] == 'PDF':
+
+
+                if info['Type'] == 'PDF' and not any(site in info['DL Source'] for site in self.blacklist):
 
                     # Name of the file we're going to download
                     name = self.regex.sub('_', info['Title'].lower()) + '.pdf'
@@ -142,11 +175,9 @@ class Scraper:
                             except Timeout:
                                 print("File at " + info['Download'] + " timed out\n")
 
-
                         # If not, use webdriver to download the links
                         else:
-                            if not "proquest.com" in info['Download']: # TODO: put a blacklist here of "bad" download sites
-                                self.dl_embedded_pdf(info['Download'], name)
+                            self.dl_embedded_pdf(info['Download'], name)
                         print("\x1B[3m'" + info['Title'] + "'\x1B[23m")
 
                         self.save_metadata(info)
@@ -249,6 +280,8 @@ class Scraper:
             tmp_driver.find_element_by_tag_name('a').click()
             sleep(int(self.sleep))
 
+        # TODO: this section seems to not work on Linux. Files simply end up in the user/Downloads
+        # folder and don't appear to get copied to the intended destination (more testing needed)
         file = self.most_recent_file()
         while not file or file.endswith('.crdownload'):
             sleep(1)
@@ -326,4 +359,6 @@ class Scraper:
         html.close()
 
 # Example of scraper :
-# scraper = Scraper(os.getcwd() + '\\Download', 'fr', True, 5)
+# scraper = Scraper(os.getcwd() + '\\Download', 'fr', True, 5)
+
+
