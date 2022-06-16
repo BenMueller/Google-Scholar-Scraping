@@ -19,7 +19,7 @@ import csv
 
 
 class Scraper:
-    def __init__(self, download_dir, language, captcha, sleeptime, overseas=False, timeout=10):
+    def __init__(self, download_dir, language, captcha, sleeptime, overseas=False, timeout=15):
         # Parameters that can be altered during the session
         self.download_dir = download_dir
         self.language = language
@@ -98,6 +98,7 @@ class Scraper:
         # We need to make sure and wait until the complex JS is loaded in the page. This may take a while. *sigh*
         try:
             WebDriverWait(self.driver, self.timeout).until(EC.presence_of_element_located((By.CLASS_NAME, 'result-table-list')))
+            WebDriverWait(self.driver, self.timeout).until(EC.presence_of_element_located((By.CLASS_NAME, 'odd')))
         except TimeoutException:
             print("Search timed out! Try increasing the timeout variable.")
 
@@ -112,12 +113,11 @@ class Scraper:
             articles_dl = articles_dl + article
 
             # Is there another page?
-            pages_divider = soup_page.find("div", class_="pages")
             if soup_page.find("a", id='PageNext') is not None:
                 if i != (last_page+1):
-                    pages_class = self.driver.find_element_by_class_name("pages")
-                    pagenext_button = pages_class.find_element_by_id("PageNext")
-                    pagenext_button.click()
+                    countpage_div = self.driver.find_element_by_class_name("result-con-r")
+                    pagenexttop_button = countpage_div.find_element_by_id("Page_next_top")
+                    pagenexttop_button.click()
                     try:
                         WebDriverWait(self.driver, self.timeout).until(EC.presence_of_element_located((By.CLASS_NAME, 'divLoading')))
                         WebDriverWait(self.driver, self.timeout).until(EC.invisibility_of_element_located((By.CLASS_NAME, 'divLoading')))

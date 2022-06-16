@@ -1,5 +1,5 @@
 import requests
-from requests.exceptions import Timeout
+from requests.exceptions import Timeout, ConnectionError
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
@@ -57,7 +57,8 @@ class Scraper:
         # Note 2: this code ALREADY breaks if you're using pip/packagetools. todo: fix this in setup.cfg
         # Hotfix currently in place: don't read from the file
         if blacklist:
-            self.blacklist = ['icm.edu.pl', 'proquest.com', 'kut.edu.kp', 'ist.psu.edu', 'koreascience.or.kr', 'img.hisupplier.com', 'xuebao.neu.edu.cn', 'journal.hep.com.cn', 'worldscientific.com']
+            self.blacklist = ['icm.edu.pl', 'proquest.com', 'kut.edu.kp', 'ist.psu.edu', 'koreascience.or.kr', 'www.koreascience.or.kr', 'img.hisupplier.com',
+                              'xuebao.neu.edu.cn', 'journal.hep.com.cn', 'worldscientific.com', 'academia.edu', 'nanoscience.or.kr']
 #            with open("../res/blacklist.txt") as fh:
 #                self.blacklist.append(fh.readline())
 
@@ -155,43 +156,44 @@ class Scraper:
             # Cas d'un lien pdf directement
             if article.find("div", class_="gs_ggs gs_fl") is not None:
                 info = self.article_info(article, True)
+                print(info['Download'])
 
+                if not any(site in info['DL Source'] for site in self.blacklist):
+                    if info['Type'] == 'PDF':
 
-                if info['Type'] == 'PDF' and not any(site in info['DL Source'] for site in self.blacklist):
+                        # Name of the file we're going to download
+                        name = self.regex.sub('_', info['Title'].lower()) + '.pdf'
 
-                    # Name of the file we're going to download
-                    name = self.regex.sub('_', info['Title'].lower()) + '.pdf'
-
-                    # Check if the paper has already been downloaded
-                    if not os.path.exists(self.download_dir + self.slash + name):
-                        info['Filename'] = name
-
-                        # If the link is already a pdf file, download it directly
-                        if os.path.splitext(info['Download'])[1] == ".pdf":
-                            filename = Path(self.download_dir + self.slash + name)
-                            try:
-                                response = requests.get(info['Download'], timeout=self.timeout)
-                                filename.write_bytes(response.content)
-                            except Timeout:
-                                print("File at " + info['Download'] + " timed out\n")
-
-                        # If not, use webdriver to download the links
-                        else:
-                            self.dl_embedded_pdf(info['Download'], name)
-                        print("\x1B[3m'" + info['Title'] + "'\x1B[23m")
-
-                        self.save_metadata(info)
-                else:
-                    name = self.regex.sub('_', info['Title'].lower()) + '.html'
-                    if not os.path.exists(self.download_dir + self.slash + name):
-
-                        # sciencedirect.com
-                        if info['DL Source'] == "sciencedirect.com":
+                        # Check if the paper has already been downloaded
+                        if not os.path.exists(self.download_dir + self.slash + name):
                             info['Filename'] = name
-                            self.sciencedirect(info['Download'], name)
+
+                            # If the link is already a pdf file, download it directly
+                            if os.path.splitext(info['Download'])[1] == ".pdf":
+                                filename = Path(self.download_dir + self.slash + name)
+                                try:
+                                    response = requests.get(info['Download'], timeout=self.timeout)
+                                    filename.write_bytes(response.content)
+                                except (Timeout, NewConnectionError) as err:
+                                    print("Downloading file at " + info['Download'] + " timed out\n")
+
+                            # If not, use webdriver to download the links
+                            else:
+                                self.dl_embedded_pdf(info['Download'], name)
+                            print("\x1B[3m'" + info['Title'] + "'\x1B[23m")
 
                             self.save_metadata(info)
-                            print("\x1B[3m'" + info['Title'] + "'\x1B[23m")
+                    else:
+                        name = self.regex.sub('_', info['Title'].lower()) + '.html'
+                        if not os.path.exists(self.download_dir + self.slash + name):
+
+                            # sciencedirect.com
+                            if info['DL Source'] == "sciencedirect.com":
+                                info['Filename'] = name
+                                self.sciencedirect(info['Download'], name)
+
+                                self.save_metadata(info)
+                                print("\x1B[3m'" + info['Title'] + "'\x1B[23m")
                 articles_dl.append(info)
             elif include_all:
                 articles_dl.append(self.article_info(article, False))
@@ -360,5 +362,6 @@ class Scraper:
 
 # Example of scraper :
 # scraper = Scraper(os.getcwd() + '\\Download', 'fr', True, 5)
+
 
 
