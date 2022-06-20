@@ -182,7 +182,7 @@ class Scraper:
             authors_list = author_class.find_all("a")
             if len(authors_list) > 0:
                 for author in authors_list:
-                    if any("KnowledgeNetLink" in a for a in author['class']):
+                    if author['class'] is not None and any("KnowledgeNetLink" in a for a in author['class']):
                         #TODO: we need to rewrite the URL. The values are all there but the keys/url is different (under .net/kcms)
                         authors[author.text] = self.rebuild_authorlink(self.kns_url + author['href'])
                     else:
