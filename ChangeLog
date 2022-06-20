@@ -1,0 +1,56 @@
+0.0.2:
+
+- Update to most current version, bump version number
+- A number of fixes and extra checks to make sure we aren't doing extra work (e.g. when there are 0 results)
+- Update sleep statements, small bugfixes
+- Update readme
+- Update readme
+- Multiple pages *should* work now, but there might be bugs at the final page timing out
+- Add some code to properly handle/encode URLs
+- Fix adding Author URL in CNKI
+- CNKI API/scraping should now work, at least for the first page. Documentation TODO.
+- Updated version as a pip package
+- Add more final version of article_info
+- Add a bunch of stuff, stub of CNKI up to ln158
+- Update readme, properly handle directories on Linux/Mac vs. Windows
+- rework some of the logic so that we don't ignore downloaded articles
+- Remove testing print
+- Allow specifying author
+
+0.0.1:
+
+- Update readme
+- Add License
+- Fix bug excluding some entries and cleanup some code. TODO: file saving in a folder doesn't seem to work properly on Linux
+- Add functionality to include all papers, not just ones with a PDF. Also fixes bug with entries missing year
+- Fix bug with strings containing special characters (e.g. commas or hyphens)
+- Update README.md
+- Add files via upload
+- Update README.md
+- Add files via upload
+- Delete occurences.py
+- Delete ppt_Zaghrini_Coutaux.pptx
+- Add files via upload
+- Delete syn.py
+- Add files via upload
+- Delete totext.py
+- Add files via upload
+- Add files via upload
+- Update README.md
+- Update exemple.html
+- Add files via upload
+- Update README.md
+- added HTML download from sciencedirect
+- Update README.md
+- Update syn.py
+- Update syn.py
+- Update README.md
+- Add files via upload
+- Update README.md
+- Add files via upload
+- Modified so that google-scholar-api waits for the file to be downloaded
+- Add files via upload
+- Delete telecharge_pdf.py
+- Delete lien_recherche.py
+- Add files via upload
+- Initial commit
