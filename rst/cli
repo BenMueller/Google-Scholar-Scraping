@@ -1,0 +1,42 @@
+#!/usr/bin/env python3
+
+import os
+import importlib
+import logging
+# from util import *
+
+import engines
+import sites
+import util.config
+
+# TODO: the CLI handler is not yet implemented. Maybe next release?
+def clihandler():
+    try:
+        click = importlib.import_module("click")
+    except ImportError:
+        logging.exception("CLI support not installed! Do you have the click package?")
+
+#    @click.command()
+#    @click.option("--engine", default="gs", help="Search engine to scrape from. Options are: gs (Google Scholar), cnki (China National Knowledge Infrastructure)")
+
+    # Somehow iterate over all the objects in engines. Use init py to get a list of them?
+    # do the same with sites.
+    # Check for VPN compatibility
+    #
+
+class RST:
+
+    _RST = None
+
+    def __init__(self, **kwargs):
+        if self._RST is None:
+            util.config.Config()
+            rst._RST = self
+
+
+    @staticmethod
+    def get_rst():
+        return rst._RST
+
+if __name__ == '__main__':
+    clihandler()

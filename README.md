@@ -1,34 +1,24 @@
 # Research Scraping Tool (RST)
 
+![PyPI - Status](https://img.shields.io/pypi/status/research-scraping-tool) ![GitHub release (latest by date)](https://img.shields.io/github/v/release/Madwonk/Research-Scraping-Tool) ![PyPI - License](https://img.shields.io/pypi/l/research-scraping-tool) ![Read the Docs](https://img.shields.io/readthedocs/research-scraping-tool)
+
 This is a fork of [Eloise Zag's](https://github.com/El-Zag) wonderful Google Scholar Scraping tool, with some extra features and bugfixes. Ideally, I'd like to generalize it to work with many academic databases (Scholar, Researchgate, CNKI, etc.) and get it packaged for general availability. Contributions are more than welcome!
 
+# Installation
+## Linux
+* Install Chromium and/or Chrome through your package manager
+* Run `pip install research-scraping-tool`
 
-# NOTE: The instructions below are OLD and need to be updated.
-## Before running the code (WINDOWS)
-* Install Google Chrome
-* Download code and ressources folder
-* Add the ressources folder to your PATH (https://www.architectryan.com/2018/03/17/add-to-the-path-on-windows-10/)
-* (Open new cmd and type 'chromedriver' to check that the variable was added to path)
-* Open cmd and execute (pip3 install -r ressources\requirements.txt) ou (pip3 install --user -r ressources\requirements.txt) if permissions are denied
-* Or add manually the libraries :
-  * bs4
-  * selenium
-  * fake_useragent
-  * pathlib
-  * requests
-  * pubchempy
-  * time, os, codecs, re, csv
-* To make the notebook work, add the folowing :
-  * ipywidgets
-  * tkinter
-  * IPython
+## Windows
+* Install Google Chrome and the Chrome Selenium [Webdriver](https://www.selenium.dev/documentation/webdriver/getting_started/install_drivers/).
+* TODO: Test on Windows to see what the install process is
 
-## How to use
+# Usage Guide
 There are 2 ways to use this script : 
-* Use the Jupyter Notebook Interface (recommended)
-* Execute the "download_files" method of a Scraper() instance, directly from the Google_Scholar_API.py
+* Manually, through Jupyter Notebook or a similar Python3 script.
+* Through the [CLI](https://research-scraping-tool.readthedocs.io/en/latest/).
 
-## Variables of the Scraper
+## Configuration Options
 * download_dir : Directory where the files will be downloaded with the metadata csv
 * language : 'fr', 'en'.. Language of Google, which switches reasearch results a little
 * captcha : change to True if you get recognized as a bot and start to get the error "NoneType Element has no attribute findChildren". It will switch to a selenium webdriver to scrape html, and let you manually fill in the Captcha before you can keep going.
@@ -50,3 +40,4 @@ There are 2 ways to use this script :
 * Grepping through the PDFs/html for author emails/contact info would be nice. Regex?
 * Add a CLI interface for Linux. Would be pretty easy, I've done it before. (Package it?)
 * Automated Testing. While this is at the bottom of the list, it definitely isn't the lowest priority!
+* Proper logging. Right now there's alot of random prints, not sure where they go necessarily.

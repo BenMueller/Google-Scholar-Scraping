@@ -45,7 +45,7 @@ def ToText(file): #file is a filname (str) or a path
 def Occurences(file, mol):
 
     text = ToText(file)
-    
+
     OccTot = 0
     for synonym in synonyms(mol):
         word = ' '+mol+' '
@@ -60,25 +60,10 @@ def pertinence(liste_pdf,recherche):
     for pdf in liste_pdf:
         Dico[pdf] = Occurences(pdf,recherche)
         ecrire=csv.writer(file, delimiter=';')
-        ecrire.writerow([pdf, Dico[pdf] ]) 
+        ecrire.writerow([pdf, Dico[pdf] ])
 
     return Dico
 
 liste = ['bonjour.pdf', 'coucou.pdf', 'salut.pdf']
 pertinence(liste,'rutin')
-
-
-
-   
- 
-
-
-
-
-
-
-
-
-
-        
 

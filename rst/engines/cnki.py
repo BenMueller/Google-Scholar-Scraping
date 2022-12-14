@@ -17,7 +17,6 @@ import re
 from fake_useragent import UserAgent
 import csv
 
-
 class Scraper:
     def __init__(self, download_dir, language, captcha, sleeptime, overseas=False, timeout=15):
         # Parameters that can be altered during the session
